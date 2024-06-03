@@ -1,7 +1,7 @@
 from PIL import Image
 import random
 
-res = 3
+res = 0
 WM = False # 0 - no, 1 - yes, WithMove 
 cells = {}
 cropped = []
@@ -43,7 +43,8 @@ for ins in range(4):
 
     
 
-    # [left, top, right, bottom]
+    # [left, top, right, bottom]uwu
+    # u will newer need that
 
     for y in range(lcy):
         for x in range(lcx):
@@ -64,13 +65,22 @@ for ins in range(4):
                     cells[flag]["nbg"]["2"].append(cropped[ins][y][(x+1)%lcx])
                     cells[flag]["nbg"]["3"].append(cropped[ins][(y+1)%lcy][x])
             else:
-                cells[str(len(cells.keys()))] = {}
-                cells[str(len(cells.keys())-1)]["nbg"] = {}
-                cells[str(len(cells.keys())-1)]["nbg"]["0"] = [cropped[ins][y][x-1-(res-1)*WM]]
-                cells[str(len(cells.keys())-1)]["nbg"]["1"] = [cropped[ins][y-1-(res-1)*WM][x]]
-                cells[str(len(cells.keys())-1)]["nbg"]["2"] = [cropped[ins][y][(x+1+(res-1)*WM)%lcx]]
-                cells[str(len(cells.keys())-1)]["nbg"]["3"] = [cropped[ins][(y+1+(res-1)*WM)%lcy][x]]
-                cells[str(len(cells.keys())-1)]["img"] = cropped[ins][y][x]
+                if WM:
+                    cells[str(len(cells.keys()))] = {}
+                    cells[str(len(cells.keys())-1)]["nbg"] = {}
+                    cells[str(len(cells.keys())-1)]["nbg"]["0"] = [cropped[ins][y][x-1-(res-1)]]
+                    cells[str(len(cells.keys())-1)]["nbg"]["1"] = [cropped[ins][y-1-(res-1)][x]]
+                    cells[str(len(cells.keys())-1)]["nbg"]["2"] = [cropped[ins][y][(x+1+(res-1))%lcx]]
+                    cells[str(len(cells.keys())-1)]["nbg"]["3"] = [cropped[ins][(y+1+(res-1))%lcy][x]]
+                    cells[str(len(cells.keys())-1)]["img"] = cropped[ins][y][x]
+                else:
+                    cells[str(len(cells.keys()))] = {}
+                    cells[str(len(cells.keys())-1)]["nbg"] = {}
+                    cells[str(len(cells.keys())-1)]["nbg"]["0"] = [cropped[ins][y][x-1]]
+                    cells[str(len(cells.keys())-1)]["nbg"]["1"] = [cropped[ins][y-1][x]]
+                    cells[str(len(cells.keys())-1)]["nbg"]["2"] = [cropped[ins][y][(x+1)%lcx]]
+                    cells[str(len(cells.keys())-1)]["nbg"]["3"] = [cropped[ins][(y+1)%lcy][x]]
+                    cells[str(len(cells.keys())-1)]["img"] = cropped[ins][y][x]
 
     for y in range(lcy):
         for x in range(lcx):
@@ -107,6 +117,9 @@ class Cell:
         self.anyFlag = True
     
     def collapse(self):
+        '''
+        COLAPS YEAHHH
+        '''
         if len(self.entropy) > 0:
             self.collapsed = True
             self.id = random.choice(self.entropy)
@@ -118,8 +131,8 @@ class Cell:
     def setCell(self, idc):
         self.collapsed = True
         self.id = idc
-        self.entropy = [self.id]
-        pick = cells[str(self.id)]
+        self.entropy = [idc]
+        pick = cells[str(idc)]
         self.nbg = pick["nbg"]
         self.img = pick["img"]            
     
@@ -220,13 +233,12 @@ class Grid:
             
             self.grid[y][x].collapse()
             self.loadEntropy()
-            flag1 = False
+            flag1 = 0 in self.entropySave.keys()
             while 0 in self.entropySave.keys():
-                flag1 = True
                 if len(self.backUps) > 0:
                     lb = self.backUps[len(self.backUps)-1]
                     self.grid[lb[1]][lb[0]] = Cell(lb)
-                    self.backUps = self.backUps[:len(self.backUps)-1]
+                    self.backUps = self.backUps[:-1]
                 else:
                     self.setRandom()
                 self.loadEntropy()
