@@ -9,29 +9,23 @@ cells = {}
 cropped = []
 for ins in range(4):
     field = Image.open("image.png")
-    if cropShift:
+    cropped.append([])
 
+    if cropShift:
         field = field.rotate(90*ins)
 
-        SX = field.size[0]
-        SY = field.size[1]
+        SX, SY = field.size
 
         copy = Image.new("RGB", (SX*2, SY*2))
         copy.paste(field, (0, 0))
         copy.paste(field, (SX, 0))
         copy.paste(field, (0, SY))
         copy.paste(field, (SX, SY))
-        field = copy
-
-        for y in range(SY):
-            cropped[ins].append([])
-            for x in range(SX):
-                cropped[ins][y].append(field.crop((x, y, x+res, y+res)))
+        field = copy.copy()
 
         cropped[ins] = [[field.crop((x, y, x+res, y+res)) for x in range(SX)] for y in range(SY)]
 
     else:
-
         field = field.rotate(90*ins)
         SX = field.size[0]//res*res
         SY = field.size[1]//res*res
@@ -62,13 +56,14 @@ for ins in range(4):
                 cells[flag]["nbg"]["2"].append(cropped[ins][y][(x+1+(res-1)*int(cropShift))%lcx])
                 cells[flag]["nbg"]["3"].append(cropped[ins][(y+1+(res-1)*int(cropShift))%lcy][x])
             else:
-                cells[str(len(cells.keys()))] = {}
-                cells[str(len(cells.keys())-1)]["nbg"] = {}
-                cells[str(len(cells.keys())-1)]["nbg"]["0"] = [cropped[ins][y][x-1-(res-1)*int(cropShift)]]
-                cells[str(len(cells.keys())-1)]["nbg"]["1"] = [cropped[ins][y-1-(res-1)*int(cropShift)][x]]
-                cells[str(len(cells.keys())-1)]["nbg"]["2"] = [cropped[ins][y][(x+1+(res-1)*int(cropShift))%lcx]]
-                cells[str(len(cells.keys())-1)]["nbg"]["3"] = [cropped[ins][(y+1+(res-1)*int(cropShift))%lcy][x]]
-                cells[str(len(cells.keys())-1)]["img"] = cropped[ins][y][x]
+                cells[str(len(cells.keys()))] = {
+                "nbg" : {
+                    "0" : [cropped[ins][y][x-1-(res-1)*int(cropShift)]],
+                    "1" : [cropped[ins][y-1-(res-1)*int(cropShift)][x]],
+                    "2" : [cropped[ins][y][(x+1+(res-1)*int(cropShift))%lcx]],
+                    "3" : [cropped[ins][(y+1+(res-1)*int(cropShift))%lcy][x]],
+                }, 
+                "img" : cropped[ins][y][x]}
 
     for y in range(lcy):
         for x in range(lcx):
@@ -95,12 +90,10 @@ class Cell:
         self.gp = gp
         self.collapsed = False
         self.entropy = []
-        self.anyFlag = True
+        self.checkCollapsedNeighbours = True
 
     def collapse(self):
-        '''
-        COLAPS YEAHHH
-        '''
+
         if len(self.entropy) > 0:
             self.collapsed = True
             self.id = random.choice(self.entropy)
@@ -119,46 +112,31 @@ class Cell:
 
     def loadEntropy(self, grid):
         if not self.collapsed:
-            self.anyFlag = True
-            if grid[self.gp[1]-1][self.gp[0]].collapsed:
-                self.entropy = grid[self.gp[1]-1][self.gp[0]].nbg["3"]
-                self.anyFlag = False
-            elif grid[self.gp[1]][self.gp[0]-1].collapsed:
-                self.entropy = grid[self.gp[1]][self.gp[0]-1].nbg["2"]
-                self.anyFlag = False
-            elif (self.gp[1]+1)<len(grid):
-                if grid[self.gp[1]+1][self.gp[0]].collapsed:
-                    self.entropy = grid[self.gp[1]+1][self.gp[0]].nbg["1"]
-                    self.anyFlag = False
-                elif (self.gp[0]+1)<len(grid[0]):
-                    if grid[self.gp[1]][self.gp[0]+1].collapsed:
-                        self.entropy = grid[self.gp[1]][self.gp[0]+1].nbg["0"]
-                        self.anyFlag = False
-                    else:
-                        return
-            elif (self.gp[0]+1)<len(grid[0]):
-                if grid[self.gp[1]][self.gp[0]+1].collapsed:
-                    self.entropy = grid[self.gp[1]][self.gp[0]+1].nbg["0"]
-                    self.anyFlag = False
-                else:
-                    return
-            else:
+            self.checkCollapsedNeighbours = True
+
+            for xy in range(-1, 1, 2):
+                if (self.gp[1]+xy)<len(grid):
+                    if grid[self.gp[1]+xy][self.gp[0]].collapsed:
+                        self.entropy = grid[self.gp[1]+xy][self.gp[0]].nbg[str(2 - xy)]
+                        self.checkCollapsedNeighbours = False
+                        break
+                if (self.gp[0]+xy)<len(grid):
+                    if grid[self.gp[1]][self.gp[0]+xy].collapsed:
+                        self.entropy = grid[self.gp[1]][self.gp[0]+xy].nbg[str(1 - xy)]
+                        self.checkCollapsedNeighbours = False
+                        break
+                
+            if self.checkCollapsedNeighbours == True:
                 return
 
-            if grid[self.gp[1]-1][self.gp[0]].collapsed:
-                self.entropy = intersection(self.entropy, grid[self.gp[1]-1][self.gp[0]].nbg["3"])
-                self.anyFlag = False
-            if grid[self.gp[1]][self.gp[0]-1].collapsed:
-                self.entropy = intersection(self.entropy, grid[self.gp[1]][self.gp[0]-1].nbg["2"])
-                self.anyFlag = False
-            if (self.gp[1]+1)<len(grid):
-                if grid[self.gp[1]+1][self.gp[0]].collapsed:
-                    self.entropy = intersection(self.entropy, grid[self.gp[1]+1][self.gp[0]].nbg["1"])
-                    self.anyFlag = False
-            if (self.gp[0]+1)<len(grid[0]):
-                if grid[self.gp[1]][self.gp[0]+1].collapsed:
-                    self.entropy = intersection(self.entropy, grid[self.gp[1]][self.gp[0]+1].nbg["0"])
-                    self.anyFlag = False
+            for xy in range(-1, 1, 2):
+                if (self.gp[1]+xy)<len(grid):
+                    if grid[self.gp[1]+xy][self.gp[0]].collapsed:
+                        self.entropy = intersection(self.entropy, grid[self.gp[1]+xy][self.gp[0]].nbg[str(2 - xy)])
+                if (self.gp[1]+xy)<len(grid):
+                    if grid[self.gp[1]][self.gp[0]+xy].collapsed:
+                        self.entropy = intersection(self.entropy, grid[self.gp[1]][self.gp[0]+xy].nbg[str(2 - xy)])
+
         else:
             self.entropy = [self.id]
 
@@ -166,7 +144,7 @@ class Cell:
         if self.collapsed:
             return -1
         else:
-            if self.anyFlag:
+            if self.checkCollapsedNeighbours:
                 return len(cells.keys())
             else:
                 return len(self.entropy)
@@ -204,6 +182,8 @@ class Grid:
     def collapse(self):
         self.loadEntropy()
         sortedEntropy = sorted(self.entropySave.keys())
+        if len(sortedEntropy) == 0:
+                return True
         while min(sortedEntropy) < 1:
             sortedEntropy.remove(min(sortedEntropy))
             if len(sortedEntropy) == 0:
