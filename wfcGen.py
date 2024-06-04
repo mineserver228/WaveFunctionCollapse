@@ -132,7 +132,7 @@ class Cell:
                         self.entropy = intersection(self.entropy, grid[self.gp[1]+xy][self.gp[0]].nbg[2 - xy])
                 if (self.gp[0]+xy)<len(grid):
                     if grid[self.gp[1]][self.gp[0]+xy].collapsed:
-                        self.entropy = intersection(self.entropy, grid[self.gp[1]][self.gp[0]+xy].nbg[2 - xy])
+                        self.entropy = intersection(self.entropy, grid[self.gp[1]][self.gp[0]+xy].nbg[1 - xy])
 
         else:
             self.entropy = [self.id]
