@@ -1,15 +1,18 @@
-from PIL import Image
 import random
 
-res = 0
-WM = False # 0 - no, 1 - yes, WithMove 
+from PIL import Image
+
+
+res = 3
+cropShift = False
 cells = {}
 cropped = []
 for ins in range(4):
-    cropped.append([])
-    if WM == 1:
-        field = Image.open("image.png")
-        
+    field = Image.open("image.png")
+    if cropShift:
+
+        field = field.rotate(90*ins)
+
         SX = field.size[0]
         SY = field.size[1]
 
@@ -24,24 +27,24 @@ for ins in range(4):
             cropped[ins].append([])
             for x in range(SX):
                 cropped[ins][y].append(field.crop((x, y, x+res, y+res)))
+
+        cropped[ins] = [[field.crop((x, y, x+res, y+res)) for x in range(SX)] for y in range(SY)]
+
     else:
-        field = Image.open("image.png")
+
         field = field.rotate(90*ins)
         SX = field.size[0]//res*res
         SY = field.size[1]//res*res
         field = field.crop((0, 0, SX, SY))
 
-        for y in range(0, SY, res):
-            cropped[ins].append([])
-            for x in range(0, SY, res):
-                cropped[ins][y//res].append(field.crop((x, y, x+res, y+res)))
+        cropped[ins] = [[field.crop((x*res, y*res, x*res+res, y*res+res)) for x in range(SX//res)] for y in range(SY//res)]
 
     lcy = len(cropped[ins])
     lcx = len(cropped[ins][0])
 
     print(lcy, lcx)
 
-    
+
 
     # [left, top, right, bottom]uwu
     # u will newer need that
@@ -52,35 +55,20 @@ for ins in range(4):
             for key in cells.keys():
                 if cropped[ins][y][x] == cells[key]["img"]:
                     flag = key
-            
+
             if flag != -1:
-                if WM:
-                    cells[flag]["nbg"]["0"].append(cropped[ins][y][x-1-(res-1)])
-                    cells[flag]["nbg"]["1"].append(cropped[ins][y-1-(res-1)][x])
-                    cells[flag]["nbg"]["2"].append(cropped[ins][y][(x+1+(res-1))%lcx])
-                    cells[flag]["nbg"]["3"].append(cropped[ins][(y+1+(res-1))%lcy][x])
-                else:
-                    cells[flag]["nbg"]["0"].append(cropped[ins][y][x-1])
-                    cells[flag]["nbg"]["1"].append(cropped[ins][y-1][x])
-                    cells[flag]["nbg"]["2"].append(cropped[ins][y][(x+1)%lcx])
-                    cells[flag]["nbg"]["3"].append(cropped[ins][(y+1)%lcy][x])
+                cells[flag]["nbg"]["0"].append(cropped[ins][y][x-1-(res-1)*int(cropShift)])
+                cells[flag]["nbg"]["1"].append(cropped[ins][y-1-(res-1)*int(cropShift)][x])
+                cells[flag]["nbg"]["2"].append(cropped[ins][y][(x+1+(res-1)*int(cropShift))%lcx])
+                cells[flag]["nbg"]["3"].append(cropped[ins][(y+1+(res-1)*int(cropShift))%lcy][x])
             else:
-                if WM:
-                    cells[str(len(cells.keys()))] = {}
-                    cells[str(len(cells.keys())-1)]["nbg"] = {}
-                    cells[str(len(cells.keys())-1)]["nbg"]["0"] = [cropped[ins][y][x-1-(res-1)]]
-                    cells[str(len(cells.keys())-1)]["nbg"]["1"] = [cropped[ins][y-1-(res-1)][x]]
-                    cells[str(len(cells.keys())-1)]["nbg"]["2"] = [cropped[ins][y][(x+1+(res-1))%lcx]]
-                    cells[str(len(cells.keys())-1)]["nbg"]["3"] = [cropped[ins][(y+1+(res-1))%lcy][x]]
-                    cells[str(len(cells.keys())-1)]["img"] = cropped[ins][y][x]
-                else:
-                    cells[str(len(cells.keys()))] = {}
-                    cells[str(len(cells.keys())-1)]["nbg"] = {}
-                    cells[str(len(cells.keys())-1)]["nbg"]["0"] = [cropped[ins][y][x-1]]
-                    cells[str(len(cells.keys())-1)]["nbg"]["1"] = [cropped[ins][y-1][x]]
-                    cells[str(len(cells.keys())-1)]["nbg"]["2"] = [cropped[ins][y][(x+1)%lcx]]
-                    cells[str(len(cells.keys())-1)]["nbg"]["3"] = [cropped[ins][(y+1)%lcy][x]]
-                    cells[str(len(cells.keys())-1)]["img"] = cropped[ins][y][x]
+                cells[str(len(cells.keys()))] = {}
+                cells[str(len(cells.keys())-1)]["nbg"] = {}
+                cells[str(len(cells.keys())-1)]["nbg"]["0"] = [cropped[ins][y][x-1-(res-1)*int(cropShift)]]
+                cells[str(len(cells.keys())-1)]["nbg"]["1"] = [cropped[ins][y-1-(res-1)*int(cropShift)][x]]
+                cells[str(len(cells.keys())-1)]["nbg"]["2"] = [cropped[ins][y][(x+1+(res-1)*int(cropShift))%lcx]]
+                cells[str(len(cells.keys())-1)]["nbg"]["3"] = [cropped[ins][(y+1+(res-1)*int(cropShift))%lcy][x]]
+                cells[str(len(cells.keys())-1)]["img"] = cropped[ins][y][x]
 
     for y in range(lcy):
         for x in range(lcx):
@@ -88,18 +76,11 @@ for ins in range(4):
                 if cells[key]["img"] == cropped[ins][y][x]:
                     Gkey = key
             for key in cells.keys():
-                for i in range(len(cells[key]["nbg"]["0"])):
-                    if cells[key]["nbg"]["0"][i] == cropped[ins][y][x]:
-                        cells[key]["nbg"]["0"][i] = Gkey
-                for i in range(len(cells[key]["nbg"]["1"])):
-                    if cells[key]["nbg"]["1"][i] == cropped[ins][y][x]:
-                        cells[key]["nbg"]["1"][i] = Gkey
-                for i in range(len(cells[key]["nbg"]["2"])):
-                    if cells[key]["nbg"]["2"][i] == cropped[ins][y][x]:
-                        cells[key]["nbg"]["2"][i] = Gkey
-                for i in range(len(cells[key]["nbg"]["3"])):
-                    if cells[key]["nbg"]["3"][i] == cropped[ins][y][x]:
-                        cells[key]["nbg"]["3"][i] = Gkey
+                for key2 in cells[key]["nbg"].keys():
+                    if key2 != "img":
+                        for i in range(len(cells[key]["nbg"][key2])):
+                            if cells[key]["nbg"][key2][i] == cropped[ins][y][x]:
+                                cells[key]["nbg"][key2][i] = Gkey
 
     print(cells)
 
@@ -115,7 +96,7 @@ class Cell:
         self.collapsed = False
         self.entropy = []
         self.anyFlag = True
-    
+
     def collapse(self):
         '''
         COLAPS YEAHHH
@@ -127,7 +108,7 @@ class Cell:
             pick = cells[self.id]
             self.nbg = pick["nbg"]
             self.img = pick["img"]
-    
+
     def setCell(self, idc):
         self.collapsed = True
         self.id = idc
@@ -135,7 +116,7 @@ class Cell:
         pick = cells[str(idc)]
         self.nbg = pick["nbg"]
         self.img = pick["img"]            
-    
+
     def loadEntropy(self, grid):
         if not self.collapsed:
             self.anyFlag = True
@@ -180,7 +161,7 @@ class Cell:
                     self.anyFlag = False
         else:
             self.entropy = [self.id]
-        
+
     def getEntropy(self):
         if self.collapsed:
             return -1
@@ -201,7 +182,7 @@ class Grid:
         self.backUps = []
         self.backUpsLength = 20
         self.reloads = 0
-    
+
     def setRandom(self):
         self.grid = []
         for y in range(self.sy):
@@ -210,67 +191,63 @@ class Grid:
                 self.grid[y].append(Cell([x, y]))
         self.grid[random.randint(0, self.sy-1)][random.randint(0, self.sx-1)].setCell(random.randint(0, len(cells)-1))
         self.getFinalImage()
-    
+
     def loadEntropy(self):
         self.entropySave = {}
         for y in range(0, self.sy):
             for x in range(0, self.sx):
                 if not self.grid[y][x].collapsed:
                     self.grid[y][x].loadEntropy(self.grid)
-                    if self.grid[y][x].getEntropy() in self.entropySave.keys():
-                        self.entropySave[self.grid[y][x].getEntropy()].append([x, y])
-                    else:
-                        self.entropySave[self.grid[y][x].getEntropy()] = [[x, y]]
-    
+                    entropy = self.grid[y][x].getEntropy()
+                    self.entropySave[entropy] = self.entropySave.get(entropy, []) + [[x, y]]
+
     def collapse(self):
-        try:
+        self.loadEntropy()
+        sortedEntropy = sorted(self.entropySave.keys())
+        while min(sortedEntropy) < 1:
+            sortedEntropy.remove(min(sortedEntropy))
+            if len(sortedEntropy) == 0:
+                return True
+        y = self.entropySave[sortedEntropy[0]][0][1]
+        x = self.entropySave[sortedEntropy[0]][0][0]
+
+        self.grid[y][x].collapse()
+        self.loadEntropy()
+        ZeroCheck = 0 in self.entropySave.keys()
+        while 0 in self.entropySave.keys():
+            if len(self.backUps) > 0:
+                lb = self.backUps[len(self.backUps)-1]
+                self.grid[lb[1]][lb[0]] = Cell(lb)
+                self.backUps = self.backUps[:-1]
+            else:
+                self.setRandom()
             self.loadEntropy()
-            s = sorted(self.entropySave.keys())
-            while min(s) < 1:
-                s.remove(min(s))
-            y = self.entropySave[s[0]][0][1]
-            x = self.entropySave[s[0]][0][0]
-            
-            self.grid[y][x].collapse()
-            self.loadEntropy()
-            flag1 = 0 in self.entropySave.keys()
-            while 0 in self.entropySave.keys():
+        if ZeroCheck:
+            self.reloads += 2
+            for j in range(self.reloads + random.randint(0, 4)):
                 if len(self.backUps) > 0:
                     lb = self.backUps[len(self.backUps)-1]
                     self.grid[lb[1]][lb[0]] = Cell(lb)
-                    self.backUps = self.backUps[:-1]
+                    self.backUps = self.backUps[:len(self.backUps)-1]
                 else:
                     self.setRandom()
-                self.loadEntropy()
-            if flag1:
-                self.reloads += 2
-                for j in range(self.reloads):
-                    if len(self.backUps) > 0:
-                        lb = self.backUps[len(self.backUps)-1]
-                        self.grid[lb[1]][lb[0]] = Cell(lb)
-                        self.backUps = self.backUps[:len(self.backUps)-1]
-                    else:
-                        self.setRandom()
-            else:
-                self.reloads = 0
-            self.backUps.append([x, y])
+        else:
+            self.reloads = 0
+        self.backUps.append([x, y])
 
-            if ITERATION % 400 == 0:
-                self.getFinalImage()
-            return False
-        except:
-            return True
-        
-    
+        if ITERATION % 400 == 0:
+            self.getFinalImage()
+        return False
+
+
     def getFinalImage(self):
-        if self.GIMAGE == None:
+        if self.GIMAGE is None:
             self.GIMAGE = Image.new("RGB", (self.sx*res, self.sy*res))
         for y in range(self.sy):
             for x in range(self.sx):
                 if self.grid[y][x].id != -1:
                     self.GIMAGE.paste(cells[str(self.grid[y][x].id)]["img"], (x*res, y*res, x*res + res, y*res + res))
         self.GIMAGE.save("result.png")
-
 
 
 if __name__ == "__main__":
