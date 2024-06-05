@@ -86,7 +86,7 @@ class Cell:
         self.gp = gp
         self.collapsed = False
         self.entropy = []
-        self.checkCollapsedNeighbours = True
+        self.collapsedNeighbours = False
 
     def collapse(self, cells):
 
@@ -104,35 +104,37 @@ class Cell:
         self.entropy = [idc]
         pick = cells[idc]
         self.nbg = pick["nbg"]
-        self.img = pick["img"]            
+        self.img = pick["img"]           
 
     def loadEntropy(self, grid):
         if not self.collapsed:
-            self.checkCollapsedNeighbours = True
+            self.collapsedNeighbours = True
+            xyshiftDict = {
+                (-1, 0) : "right", 
+                (1, 0) : "left",
+                (0, -1) : "bottom",
+                (0, 1) : "top"
+            }
 
-            for xy in [-1, 1]:
-                
-                if (self.gp[1]+xy)<len(grid):
-                    if grid[self.gp[1]+xy][self.gp[0]].collapsed:
-                        self.entropy = grid[self.gp[1]+xy][self.gp[0]].nbg[list(grid[self.gp[1]+xy][self.gp[0]].nbg.keys())[2 - xy]]
-                        self.checkCollapsedNeighbours = False
-                        break
-                if (self.gp[0]+xy)<len(grid):
-                    if grid[self.gp[1]][self.gp[0]+xy].collapsed:
-                        self.entropy = grid[self.gp[1]][self.gp[0]+xy].nbg[list(grid[self.gp[1]][self.gp[0]+xy].nbg.keys())[1 - xy]]
-                        self.checkCollapsedNeighbours = False
-                        break
-                
-            if self.checkCollapsedNeighbours == True:
+            neighbourRules = []
+
+            for x in [-1, 0, 1]:
+                for y in [-1, 0, 1]:
+                    if abs(x) == abs(y):
+                        continue
+                    if (self.gp[1]+y)<len(grid) and (self.gp[0]+x)<len(grid):
+                        if grid[self.gp[1]+y][self.gp[0]+x].collapsed:
+                            direction = xyshiftDict[(x, y)]
+                            rule = grid[self.gp[1]+y][self.gp[0]+x].nbg[direction]
+                            neighbourRules.append(rule)
+                            self.collapsedNeighbours = False
+
+            if not neighbourRules:
                 return
 
-            for xy in [-1, 1]:
-                if (self.gp[1]+xy)<len(grid):
-                    if grid[self.gp[1]+xy][self.gp[0]].collapsed:
-                        self.entropy = intersection(self.entropy, grid[self.gp[1]+xy][self.gp[0]].nbg[list(grid[self.gp[1]+xy][self.gp[0]].nbg.keys())[2 - xy]])
-                if (self.gp[0]+xy)<len(grid):
-                    if grid[self.gp[1]][self.gp[0]+xy].collapsed:
-                        self.entropy = intersection(self.entropy, grid[self.gp[1]][self.gp[0]+xy].nbg[list(grid[self.gp[1]][self.gp[0]+xy].nbg.keys())[1 - xy]])
+            self.entropy = neighbourRules[0]
+            for i in neighbourRules[1:]:
+                self.entropy = intersection(self.entropy, i)
 
         else:
             self.entropy = [self.id]
@@ -141,7 +143,7 @@ class Cell:
         if self.collapsed:
             return -1
         else:
-            if self.checkCollapsedNeighbours:
+            if self.collapsedNeighbours:
                 return 9223372036854775800 # max int - 1, this number need to be bigger than len of cells
             else:
                 return len(self.entropy)
@@ -231,9 +233,9 @@ class Grid:
 
 if __name__ == "__main__":
     
-    cells = loadCells("image.png", 3)
+    cells = loadCells("image.png", 3, True)
 
-    grid = Grid(10, 10, cells, 3)
+    grid = Grid(20, 20, cells, 3)
     grid.setRandom()
     grid.loadEntropy()
     ITERATION = 0
