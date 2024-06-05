@@ -3,33 +3,32 @@ import random
 from PIL import Image
 
 def loadCells(imageLink, tileSize=3, cropShift=False):
-    cropShift = cropShift
     cells = {}
     cropped = []
+    startImage = Image.open(imageLink)
     for ins in range(4):
         print(ins/4)
-        field = Image.open(imageLink)
+        
         cropped.append([])
 
         if cropShift:
-            field = field.rotate(90*ins)
+            rotImage = startImage.rotate(90*ins)
 
-            SX, SY = field.size
+            SX, SY = rotImage.size
 
-            copy = Image.new("RGB", (SX*2, SY*2))
-            copy.paste(field, (0, 0))
-            copy.paste(field, (SX, 0))
-            copy.paste(field, (0, SY))
-            copy.paste(field, (SX, SY))
-            field = copy.copy()
+            field = Image.new("RGB", (SX*2, SY*2))
+            field.paste(rotImage, (0, 0))
+            field.paste(rotImage, (SX, 0))
+            field.paste(rotImage, (0, SY))
+            field.paste(rotImage, (SX, SY))
 
             cropped[ins] = [[field.crop((x, y, x+tileSize, y+tileSize)) for x in range(SX)] for y in range(SY)]
 
         else:
-            field = field.rotate(90*ins)
-            SX = field.size[0]//tileSize*tileSize
-            SY = field.size[1]//tileSize*tileSize
-            field = field.crop((0, 0, SX, SY))
+            rotImage = startImage.rotate(90*ins)
+            SX = rotImage.size[0]//tileSize*tileSize
+            SY = rotImage.size[1]//tileSize*tileSize
+            field = rotImage.crop((0, 0, SX, SY))
 
             cropped[ins] = [[field.crop((x*tileSize, y*tileSize, x*tileSize+tileSize, y*tileSize+tileSize)) for x in range(SX//tileSize)] for y in range(SY//tileSize)]
 
@@ -42,16 +41,16 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
 
         for y in range(lcy):
             for x in range(lcx):
-                flag = -1
-                for key in cells.keys():
-                    if cropped[ins][y][x] == cells[key]["img"]:
-                        flag = key
+                cellId = -1
+                for CellIdKey in cells.keys():
+                    if cropped[ins][y][x] == cells[CellIdKey]["img"]:
+                        cellId = CellIdKey
 
-                if flag != -1:
-                    cells[flag]["nbg"][0].append(cropped[ins][y][x-1-(tileSize-1)*int(cropShift)])
-                    cells[flag]["nbg"][1].append(cropped[ins][y-1-(tileSize-1)*int(cropShift)][x])
-                    cells[flag]["nbg"][2].append(cropped[ins][y][(x+1+(tileSize-1)*int(cropShift))%lcx])
-                    cells[flag]["nbg"][3].append(cropped[ins][(y+1+(tileSize-1)*int(cropShift))%lcy][x])
+                if cellId != -1:
+                    cells[cellId]["nbg"][0].append(cropped[ins][y][x-1-(tileSize-1)*int(cropShift)])
+                    cells[cellId]["nbg"][1].append(cropped[ins][y-1-(tileSize-1)*int(cropShift)][x])
+                    cells[cellId]["nbg"][2].append(cropped[ins][y][(x+1+(tileSize-1)*int(cropShift))%lcx])
+                    cells[cellId]["nbg"][3].append(cropped[ins][(y+1+(tileSize-1)*int(cropShift))%lcy][x])
                 else:
                     cells[len(cells.keys())] = {
                         "nbg" : {
@@ -65,15 +64,16 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
 
         for y in range(lcy):
             for x in range(lcx):
-                for key in cells.keys():
-                    if cells[key]["img"] == cropped[ins][y][x]:
-                        Gkey = key
-                for key in cells.keys():
-                    for key2 in cells[key]["nbg"].keys():
-                        if key2 != "img":
-                            for i in range(len(cells[key]["nbg"][key2])):
-                                if cells[key]["nbg"][key2][i] == cropped[ins][y][x]:
-                                    cells[key]["nbg"][key2][i] = Gkey
+                
+                for CellIdKey, value in cells.items():
+                    if value["img"] == cropped[ins][y][x]:
+                        Gkey = CellIdKey
+                
+                for CellIdKey in cells.keys():
+                    for neighborKey in cells[CellIdKey]["nbg"].keys():
+                        for i in range(len(cells[CellIdKey]["nbg"][neighborKey])):
+                            if cells[CellIdKey]["nbg"][neighborKey][i] == cropped[ins][y][x]:
+                                cells[CellIdKey]["nbg"][neighborKey][i] = Gkey
     return cells
 
 def intersection(mass1, mass2):
@@ -142,12 +142,12 @@ class Cell:
             return -1
         else:
             if self.checkCollapsedNeighbours:
-                return len(cells.keys())
+                return 9223372036854775800
             else:
                 return len(self.entropy)
 
 class Grid:
-    def __init__(self, sx, sy):
+    def __init__(self, sx, sy, cells):
         self.sx = sx
         self.sy = sy
         self.entropySave = {}
@@ -157,27 +157,28 @@ class Grid:
         self.backUps = []
         self.backUpsLength = 20
         self.reloads = 0
+        self.cells = cells
 
-    def setRandom(self, cells):
+    def setRandom(self):
         self.grid = []
         for y in range(self.sy):
             self.grid.append([])
             for x in range(self.sx):
                 self.grid[y].append(Cell([x, y]))
-        self.grid[random.randint(0, self.sy-1)][random.randint(0, self.sx-1)].setCell(random.randint(0, len(cells)-1), cells)
-        self.getFinalImage(cells)
+        self.grid[random.randint(0, self.sy-1)][random.randint(0, self.sx-1)].setCell(random.randint(0, len(self.cells)-1), self.cells)
+        self.getFinalImage(self.cells)
 
-    def loadEntropy(self, cells):
+    def loadEntropy(self):
         self.entropySave = {}
         for y in range(0, self.sy):
             for x in range(0, self.sx):
                 if not self.grid[y][x].collapsed:
                     self.grid[y][x].loadEntropy(self.grid)
-                    entropy = self.grid[y][x].getEntropy(cells)
+                    entropy = self.grid[y][x].getEntropy(self.cells)
                     self.entropySave[entropy] = self.entropySave.get(entropy, []) + [[x, y]]
 
-    def collapse(self, cells):
-        self.loadEntropy(cells)
+    def collapse(self):
+        self.loadEntropy(self.cells)
         sortedEntropy = sorted(self.entropySave.keys())
         if len(sortedEntropy) == 0:
                 return True
@@ -188,8 +189,8 @@ class Grid:
         y = self.entropySave[sortedEntropy[0]][0][1]
         x = self.entropySave[sortedEntropy[0]][0][0]
 
-        self.grid[y][x].collapse(cells)
-        self.loadEntropy(cells)
+        self.grid[y][x].collapse(self.cells)
+        self.loadEntropy(self.cells)
         ZeroCheck = 0 in self.entropySave.keys()
         while 0 in self.entropySave.keys():
             if len(self.backUps) > 0:
@@ -197,8 +198,8 @@ class Grid:
                 self.grid[lb[1]][lb[0]] = Cell(lb)
                 self.backUps = self.backUps[:-1]
             else:
-                self.setRandom(cells)
-            self.loadEntropy(cells)
+                self.setRandom(self.cells)
+            self.loadEntropy(self.cells)
         if ZeroCheck:
             self.reloads += 2
             for j in range(self.reloads + random.randint(0, 4)):
@@ -207,38 +208,38 @@ class Grid:
                     self.grid[lb[1]][lb[0]] = Cell(lb)
                     self.backUps = self.backUps[:len(self.backUps)-1]
                 else:
-                    self.setRandom(cells)
+                    self.setRandom(self.cells)
         else:
             self.reloads = 0
         self.backUps.append([x, y])
 
         if ITERATION % 400 == 0:
-            self.getFinalImage(cells)
+            self.getFinalImage(self.cells)
         return False
 
 
-    def getFinalImage(self, cells, tileSize=3):
+    def getFinalImage(self, tileSize=3, saveFileName="result.png"):
         if self.GIMAGE is None:
             self.GIMAGE = Image.new("RGB", (self.sx*tileSize, self.sy*tileSize))
         for y in range(self.sy):
             for x in range(self.sx):
                 if self.grid[y][x].id != -1:
-                    self.GIMAGE.paste(cells[self.grid[y][x].id]["img"], (x*tileSize, y*tileSize, x*tileSize + tileSize, y*tileSize + tileSize))
-        self.GIMAGE.save("tileSizeult.png")
+                    self.GIMAGE.paste(self.cells[self.grid[y][x].id]["img"], (x*tileSize, y*tileSize, x*tileSize + tileSize, y*tileSize + tileSize))
+        self.GIMAGE.save(saveFileName)
 
 
 if __name__ == "__main__":
     
     cells = loadCells("image.png", 3)
 
-    grid = Grid(25, 25)
-    grid.setRandom(cells)
-    grid.loadEntropy(cells)
+    grid = Grid(25, 25, cells)
+    grid.setRandom()
+    grid.loadEntropy()
     ITERATION = 0
     flag = False
     while not flag:
         ITERATION += 1
         if ITERATION %400 == 0:
             print(ITERATION)
-        flag = grid.collapse(cells)
-    grid.getFinalImage(cells, 3)
+        flag = grid.collapse()
+    grid.getFinalImage(3)
