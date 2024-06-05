@@ -137,17 +137,17 @@ class Cell:
         else:
             self.entropy = [self.id]
 
-    def getEntropy(self, cells):
+    def getEntropy(self):
         if self.collapsed:
             return -1
         else:
             if self.checkCollapsedNeighbours:
-                return 9223372036854775800
+                return 9223372036854775800 # max int - 1, this number need to be bigger than len of cells
             else:
                 return len(self.entropy)
 
 class Grid:
-    def __init__(self, sx, sy, cells):
+    def __init__(self, sx, sy, cells, tileSize=3):
         self.sx = sx
         self.sy = sy
         self.entropySave = {}
@@ -158,6 +158,7 @@ class Grid:
         self.backUpsLength = 20
         self.reloads = 0
         self.cells = cells
+        self.tileSize = tileSize
 
     def setRandom(self):
         self.grid = []
@@ -166,19 +167,19 @@ class Grid:
             for x in range(self.sx):
                 self.grid[y].append(Cell([x, y]))
         self.grid[random.randint(0, self.sy-1)][random.randint(0, self.sx-1)].setCell(random.randint(0, len(self.cells)-1), self.cells)
-        self.getFinalImage(self.cells)
+        self.getFinalImage()
 
     def loadEntropy(self):
         self.entropySave = {}
         for y in range(0, self.sy):
             for x in range(0, self.sx):
+                self.grid[y][x].loadEntropy(self.grid)
                 if not self.grid[y][x].collapsed:
-                    self.grid[y][x].loadEntropy(self.grid)
-                    entropy = self.grid[y][x].getEntropy(self.cells)
+                    entropy = self.grid[y][x].getEntropy()
                     self.entropySave[entropy] = self.entropySave.get(entropy, []) + [[x, y]]
 
     def collapse(self):
-        self.loadEntropy(self.cells)
+        self.loadEntropy()
         sortedEntropy = sorted(self.entropySave.keys())
         if len(sortedEntropy) == 0:
                 return True
@@ -190,7 +191,7 @@ class Grid:
         x = self.entropySave[sortedEntropy[0]][0][0]
 
         self.grid[y][x].collapse(self.cells)
-        self.loadEntropy(self.cells)
+        self.loadEntropy()
         ZeroCheck = 0 in self.entropySave.keys()
         while 0 in self.entropySave.keys():
             if len(self.backUps) > 0:
@@ -198,8 +199,8 @@ class Grid:
                 self.grid[lb[1]][lb[0]] = Cell(lb)
                 self.backUps = self.backUps[:-1]
             else:
-                self.setRandom(self.cells)
-            self.loadEntropy(self.cells)
+                self.setRandom()
+            self.loadEntropy()
         if ZeroCheck:
             self.reloads += 2
             for j in range(self.reloads + random.randint(0, 4)):
@@ -208,23 +209,23 @@ class Grid:
                     self.grid[lb[1]][lb[0]] = Cell(lb)
                     self.backUps = self.backUps[:len(self.backUps)-1]
                 else:
-                    self.setRandom(self.cells)
+                    self.setRandom()
         else:
             self.reloads = 0
         self.backUps.append([x, y])
 
         if ITERATION % 400 == 0:
-            self.getFinalImage(self.cells)
+            self.getFinalImage()
         return False
 
 
-    def getFinalImage(self, tileSize=3, saveFileName="result.png"):
+    def getFinalImage(self, saveFileName="result.png"):
         if self.GIMAGE is None:
-            self.GIMAGE = Image.new("RGB", (self.sx*tileSize, self.sy*tileSize))
+            self.GIMAGE = Image.new("RGB", (self.sx*self.tileSize, self.sy*self.tileSize))
         for y in range(self.sy):
             for x in range(self.sx):
                 if self.grid[y][x].id != -1:
-                    self.GIMAGE.paste(self.cells[self.grid[y][x].id]["img"], (x*tileSize, y*tileSize, x*tileSize + tileSize, y*tileSize + tileSize))
+                    self.GIMAGE.paste(self.cells[self.grid[y][x].id]["img"], (x*self.tileSize, y*self.tileSize, x*self.tileSize + self.tileSize, y*self.tileSize + self.tileSize))
         self.GIMAGE.save(saveFileName)
 
 
@@ -232,7 +233,7 @@ if __name__ == "__main__":
     
     cells = loadCells("image.png", 3)
 
-    grid = Grid(25, 25, cells)
+    grid = Grid(10, 10, cells, 3)
     grid.setRandom()
     grid.loadEntropy()
     ITERATION = 0
@@ -242,4 +243,4 @@ if __name__ == "__main__":
         if ITERATION %400 == 0:
             print(ITERATION)
         flag = grid.collapse()
-    grid.getFinalImage(3)
+    grid.getFinalImage()
