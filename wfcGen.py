@@ -9,7 +9,6 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
     for ins in range(4):
         print(ins/4)
         
-        cropped.append([])
 
         if cropShift:
             rotImage = startImage.rotate(90*ins)
@@ -22,7 +21,7 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
             field.paste(rotImage, (0, SY))
             field.paste(rotImage, (SX, SY))
 
-            cropped[ins] = [[field.crop((x, y, x+tileSize, y+tileSize)) for x in range(SX)] for y in range(SY)]
+            cropped.append([[field.crop((x, y, x+tileSize, y+tileSize)) for x in range(SX)] for y in range(SY)])
 
         else:
             rotImage = startImage.rotate(90*ins)
@@ -30,7 +29,7 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
             SY = rotImage.size[1]//tileSize*tileSize
             field = rotImage.crop((0, 0, SX, SY))
 
-            cropped[ins] = [[field.crop((x*tileSize, y*tileSize, x*tileSize+tileSize, y*tileSize+tileSize)) for x in range(SX//tileSize)] for y in range(SY//tileSize)]
+            cropped.append([[field.crop((x*tileSize, y*tileSize, x*tileSize+tileSize, y*tileSize+tileSize)) for x in range(SX//tileSize)] for y in range(SY//tileSize)])
 
         lcy = len(cropped[ins])
         lcx = len(cropped[ins][0])
@@ -47,17 +46,17 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
                         cellId = CellIdKey
 
                 if cellId != -1:
-                    cells[cellId]["nbg"][0].append(cropped[ins][y][x-1-(tileSize-1)*int(cropShift)])
-                    cells[cellId]["nbg"][1].append(cropped[ins][y-1-(tileSize-1)*int(cropShift)][x])
-                    cells[cellId]["nbg"][2].append(cropped[ins][y][(x+1+(tileSize-1)*int(cropShift))%lcx])
-                    cells[cellId]["nbg"][3].append(cropped[ins][(y+1+(tileSize-1)*int(cropShift))%lcy][x])
+                    cells[cellId]["nbg"]["left"].append(cropped[ins][y][x-1-(tileSize-1)*int(cropShift)])
+                    cells[cellId]["nbg"]["top"].append(cropped[ins][y-1-(tileSize-1)*int(cropShift)][x])
+                    cells[cellId]["nbg"]["right"].append(cropped[ins][y][(x+1+(tileSize-1)*int(cropShift))%lcx])
+                    cells[cellId]["nbg"]["bottom"].append(cropped[ins][(y+1+(tileSize-1)*int(cropShift))%lcy][x])
                 else:
                     cells[len(cells.keys())] = {
                         "nbg" : {
-                            0 : [cropped[ins][y][x-1-(tileSize-1)*int(cropShift)]],
-                            1 : [cropped[ins][y-1-(tileSize-1)*int(cropShift)][x]],
-                            2 : [cropped[ins][y][(x+1+(tileSize-1)*int(cropShift))%lcx]],
-                            3 : [cropped[ins][(y+1+(tileSize-1)*int(cropShift))%lcy][x]],
+                            "left" : [cropped[ins][y][x-1-(tileSize-1)*int(cropShift)]],
+                            "top" : [cropped[ins][y-1-(tileSize-1)*int(cropShift)][x]],
+                            "right" : [cropped[ins][y][(x+1+(tileSize-1)*int(cropShift))%lcx]],
+                            "bottom" : [cropped[ins][(y+1+(tileSize-1)*int(cropShift))%lcy][x]],
                         }, 
                         "img" : cropped[ins][y][x]
                     }
@@ -112,14 +111,15 @@ class Cell:
             self.checkCollapsedNeighbours = True
 
             for xy in [-1, 1]:
+                
                 if (self.gp[1]+xy)<len(grid):
                     if grid[self.gp[1]+xy][self.gp[0]].collapsed:
-                        self.entropy = grid[self.gp[1]+xy][self.gp[0]].nbg[2 - xy]
+                        self.entropy = grid[self.gp[1]+xy][self.gp[0]].nbg[list(grid[self.gp[1]+xy][self.gp[0]].nbg.keys())[2 - xy]]
                         self.checkCollapsedNeighbours = False
                         break
                 if (self.gp[0]+xy)<len(grid):
                     if grid[self.gp[1]][self.gp[0]+xy].collapsed:
-                        self.entropy = grid[self.gp[1]][self.gp[0]+xy].nbg[1 - xy]
+                        self.entropy = grid[self.gp[1]][self.gp[0]+xy].nbg[list(grid[self.gp[1]][self.gp[0]+xy].nbg.keys())[1 - xy]]
                         self.checkCollapsedNeighbours = False
                         break
                 
@@ -129,10 +129,10 @@ class Cell:
             for xy in [-1, 1]:
                 if (self.gp[1]+xy)<len(grid):
                     if grid[self.gp[1]+xy][self.gp[0]].collapsed:
-                        self.entropy = intersection(self.entropy, grid[self.gp[1]+xy][self.gp[0]].nbg[2 - xy])
+                        self.entropy = intersection(self.entropy, grid[self.gp[1]+xy][self.gp[0]].nbg[list(grid[self.gp[1]+xy][self.gp[0]].nbg.keys())[2 - xy]])
                 if (self.gp[0]+xy)<len(grid):
                     if grid[self.gp[1]][self.gp[0]+xy].collapsed:
-                        self.entropy = intersection(self.entropy, grid[self.gp[1]][self.gp[0]+xy].nbg[1 - xy])
+                        self.entropy = intersection(self.entropy, grid[self.gp[1]][self.gp[0]+xy].nbg[list(grid[self.gp[1]][self.gp[0]+xy].nbg.keys())[1 - xy]])
 
         else:
             self.entropy = [self.id]
