@@ -190,7 +190,7 @@ class Grid:
             for y in [-1, 0, 1]:
                 if abs(x) == abs(y):
                     continue
-                if (pos[1]+y)<len(self.grid) and (pos[0]+x)<len(self.grid):
+                if (pos[1]+y)<len(self.grid) and (pos[0]+x)<len(self.grid) and (pos[1]+y)>=0 and (pos[0]+x)>=0:
                     self.loadPosEntropy([pos[0]+x, pos[1]+y])
 
     def collapse(self):
@@ -235,14 +235,15 @@ class Grid:
                 if self.grid[y][x].collapsed:
                     self.GIMAGE.paste(self.cells[self.grid[y][x].id]["img"], (x*self.tileSize, y*self.tileSize, x*self.tileSize + self.tileSize, y*self.tileSize + self.tileSize))
         self.GIMAGE.save(saveFileName)
-        
-
+    
+    def imagePixelsToArray(self, colorToPixelDict):
+        return [[colorToPixelDict[self.GIMAGE.getpixel((x, y))] if self.GIMAGE.getpixel((x, y)) in colorToPixelDict.keys() else -1 for x in range(self.sx*self.tileSize)] for y in range(self.sy*self.tileSize)]
 
 if __name__ == "__main__":
     
     cells = loadCells("image.png", 4, False)
 
-    grid = Grid(100, 100, cells, 4)
+    grid = Grid(10, 10, cells, 4)
     grid.setRandom()
     ITERATION = 0
     flag = False
@@ -252,3 +253,4 @@ if __name__ == "__main__":
             print(ITERATION)
         flag = grid.collapse()
     grid.getFinalImage()
+    result = grid.imagePixelsToArray({(0, 0, 0) : 0})
