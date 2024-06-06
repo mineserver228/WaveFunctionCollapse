@@ -1,9 +1,6 @@
 import random
-import time
 
 from PIL import Image
-
-Gtimer = 0
 
 def loadCells(imageLink, tileSize=3, cropShift=False):
     cells = {}
@@ -150,7 +147,7 @@ class Cell:
                 return 9223372036854775800 # max int - 1, this number need to be bigger than len of cells
             else:
                 return len(self.entropy)
-
+ 
 class Grid:
     def __init__(self, sx, sy, cells, tileSize=3):
         self.sx = sx
@@ -178,8 +175,8 @@ class Grid:
         self.loadEntropyAroundPos([rand[1], rand[0]])
 
     def loadPosEntropy(self, pos):
-        for entropy, value in self.entropySave.items():
-            if [pos[0], pos[1]] in value:
+        for entropy, cellPoses in self.entropySave.items():
+            if [pos[0], pos[1]] in cellPoses:
                 self.entropySave[entropy].remove([pos[0], pos[1]])
                 if self.entropySave[entropy] == []:
                     self.entropySave.pop(entropy, None)
@@ -190,11 +187,11 @@ class Grid:
     
     def loadEntropyAroundPos(self, pos):
         for x in [-1, 0, 1]:
-                for y in [-1, 0, 1]:
-                    if abs(x) == abs(y):
-                        continue
-                    if (pos[1]+y)<len(self.grid) and (pos[0]+x)<len(self.grid):
-                        self.loadPosEntropy([pos[0]+x, pos[1]+y])
+            for y in [-1, 0, 1]:
+                if abs(x) == abs(y):
+                    continue
+                if (pos[1]+y)<len(self.grid) and (pos[0]+x)<len(self.grid):
+                    self.loadPosEntropy([pos[0]+x, pos[1]+y])
 
     def collapse(self):
         sortedEntropy = sorted(self.entropySave.keys())
