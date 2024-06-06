@@ -34,7 +34,7 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
         lcy = len(cropped[ins])
         lcx = len(cropped[ins][0])
 
-
+        cropShiftMove = (tileSize-1)*int(cropShift)
         # [left, top, right, bottom]uwu
         # u will newer need that
 
@@ -44,19 +44,19 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
                 for CellIdKey in cells.keys():
                     if cropped[ins][y][x] == cells[CellIdKey]["img"]:
                         cellId = CellIdKey
-
+                
                 if cellId != -1:
-                    cells[cellId]["nbg"]["left"].append(cropped[ins][y][x-1-(tileSize-1)*int(cropShift)])
-                    cells[cellId]["nbg"]["top"].append(cropped[ins][y-1-(tileSize-1)*int(cropShift)][x])
-                    cells[cellId]["nbg"]["right"].append(cropped[ins][y][(x+1+(tileSize-1)*int(cropShift))%lcx])
-                    cells[cellId]["nbg"]["bottom"].append(cropped[ins][(y+1+(tileSize-1)*int(cropShift))%lcy][x])
+                    cells[cellId]["nbg"]["left"].append(cropped[ins][y][x-1-cropShiftMove])
+                    cells[cellId]["nbg"]["top"].append(cropped[ins][y-1-cropShiftMove][x])
+                    cells[cellId]["nbg"]["right"].append(cropped[ins][y][(x+1+cropShiftMove)%lcx])
+                    cells[cellId]["nbg"]["bottom"].append(cropped[ins][(y+1+cropShiftMove)%lcy][x])
                 else:
                     cells[len(cells.keys())] = {
                         "nbg" : {
-                            "left" : [cropped[ins][y][x-1-(tileSize-1)*int(cropShift)]],
-                            "top" : [cropped[ins][y-1-(tileSize-1)*int(cropShift)][x]],
-                            "right" : [cropped[ins][y][(x+1+(tileSize-1)*int(cropShift))%lcx]],
-                            "bottom" : [cropped[ins][(y+1+(tileSize-1)*int(cropShift))%lcy][x]],
+                            "left" : [cropped[ins][y][x-1-cropShiftMove]],
+                            "top" : [cropped[ins][y-1-cropShiftMove][x]],
+                            "right" : [cropped[ins][y][(x+1+cropShiftMove)%lcx]],
+                            "bottom" : [cropped[ins][(y+1+cropShiftMove)%lcy][x]],
                         }, 
                         "img" : cropped[ins][y][x]
                     }
@@ -139,12 +139,12 @@ class Cell:
         else:
             self.entropy = [self.id]
 
-    def getEntropy(self):
+    def getEntropy(self, cells):
         if self.collapsed:
             return -1
         else:
             if self.collapsedNeighbours:
-                return 9223372036854775800 # max int - 1, this number need to be bigger than len of cells
+                return len(cells) # max int - 1, this number need to be bigger than len of cells
             else:
                 return len(self.entropy)
 
@@ -177,7 +177,7 @@ class Grid:
             for x in range(0, self.sx):
                 self.grid[y][x].loadEntropy(self.grid)
                 if not self.grid[y][x].collapsed:
-                    entropy = self.grid[y][x].getEntropy()
+                    entropy = self.grid[y][x].getEntropy(self.cells)
                     self.entropySave[entropy] = self.entropySave.get(entropy, []) + [[x, y]]
 
     def collapse(self):
