@@ -144,7 +144,7 @@ class Cell:
             return -1
         else:
             if self.collapsedNeighbours:
-                return len(cells) # max int - 1, this number need to be bigger than len of cells
+                return len(cells)
             else:
                 return len(self.entropy)
 
