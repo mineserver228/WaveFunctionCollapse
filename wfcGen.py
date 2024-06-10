@@ -171,31 +171,35 @@ class Grid:
             self.grid.append([])
             for x in range(self.sx):
                 self.grid[y].append(Cell([x, y]))
-        rand = [random.randint(0, self.sy-1), random.randint(0, self.sx-1)]
-        self.grid[rand[0]][rand[1]].setCell(random.randint(0, len(self.cells)-1), self.cells)
-        self.loadPosEntropy([rand[1], rand[0]])
-        self.loadEntropyAroundPos([rand[1], rand[0]])
+        randomXPos = random.randint(0, self.sx-1)
+        randomYPos = random.randint(0, self.sy-1)
+        self.grid[randomYPos][randomXPos].setCell(random.randint(0, len(self.cells)-1), self.cells)
+        self.loadPosEntropy([randomXPos, randomYPos])
+        self.loadEntropyAroundPos([randomXPos, randomYPos])
 
     def loadPosEntropy(self, pos):
-        if (pos[0], pos[1]) in list(self.invertedEntropy.keys()) and pos in self.entropySave[self.invertedEntropy[(pos[0], pos[1])]]:
-            self.entropySave[self.invertedEntropy[(pos[0], pos[1])]].remove(pos)
-            if self.entropySave[self.invertedEntropy[(pos[0], pos[1])]] == []:
-                self.entropySave.pop(self.invertedEntropy[(pos[0], pos[1])], None)
-        self.grid[pos[1]][pos[0]].loadEntropy(self.grid)
-        entropy = self.grid[pos[1]][pos[0]].getEntropy(self.cells)
+        posx, posy = pos
+        if (posx, posy) in list(self.invertedEntropy.keys()) and self.invertedEntropy[(posx, posy)] in self.entropySave.keys():
+            if pos in self.entropySave[self.invertedEntropy[(posx, posy)]]:
+                self.entropySave[self.invertedEntropy[(posx, posy)]].remove(pos)
+                if self.entropySave[self.invertedEntropy[(posx, posy)]] == []:
+                    self.entropySave.pop(self.invertedEntropy[(posx, posy)], None)
+        self.grid[posy][posx].loadEntropy(self.grid)
+        entropy = self.grid[posy][posx].getEntropy(self.cells)
         if entropy != -1:
             self.entropySave[entropy] = self.entropySave.get(entropy, []) + [pos]
-            self.invertedEntropy[(pos[0], pos[1])] = entropy
+            self.invertedEntropy[(posx, posy)] = entropy
         else:
-            self.invertedEntropy.pop((pos[0], pos[1]), None)
+            self.invertedEntropy.pop((posx, posy), None)
     
     def loadEntropyAroundPos(self, pos):
+        posx, posy = pos
         for x in [-1, 0, 1]:
             for y in [-1, 0, 1]:
                 if abs(x) == abs(y):
                     continue
-                if (pos[1]+y)<len(self.grid) and (pos[0]+x)<len(self.grid) and (pos[1]+y)>=0 and (pos[0]+x)>=0:
-                    self.loadPosEntropy([pos[0]+x, pos[1]+y])
+                if (posy+y)<len(self.grid) and (posx+x)<len(self.grid) and (posy+y)>=0 and (posx+x)>=0:
+                    self.loadPosEntropy([posx+x, posy+y])
 
     def collapse(self):
         sortedEntropy = sorted(self.entropySave.keys())
@@ -205,9 +209,7 @@ class Grid:
             sortedEntropy.remove(min(sortedEntropy))
             if len(sortedEntropy) == 0:
                 return True
-        entropyPos = random.choice(self.entropySave[sortedEntropy[0]])
-        y = entropyPos[1]
-        x = entropyPos[0]
+        x, y = random.choice(self.entropySave[sortedEntropy[0]])
 
         self.grid[y][x].collapse(self.cells)
         self.loadPosEntropy([x, y])
@@ -245,7 +247,7 @@ class Grid:
 
 if __name__ == "__main__":
     cells = loadCells("image.png", 3, True)
-
+    
     timer = time.time()
 
     grid = Grid(100, 100, cells, 3)
