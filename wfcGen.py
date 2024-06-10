@@ -1,9 +1,10 @@
 import random
+import time
 
 from PIL import Image
 
 def loadCells(imageLink, tileSize=3, cropShift=False):
-    cells = {}
+    cells = []
     cropped = []
     startImage = Image.open(imageLink)
     for ins in range(4):
@@ -11,7 +12,7 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
         
 
         if cropShift:
-            rotImage = startImage.rotate(90*ins)
+            rotImage = startImage.rotate(90*ins, expand=True)
 
             SX, SY = rotImage.size
 
@@ -41,7 +42,7 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
         for y in range(lcy):
             for x in range(lcx):
                 cellId = -1
-                for CellIdKey in cells.keys():
+                for CellIdKey in range(len(cells)):
                     if cropped[ins][y][x] == cells[CellIdKey]["img"]:
                         cellId = CellIdKey
                 
@@ -51,7 +52,7 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
                     cells[cellId]["nbg"]["right"].append(cropped[ins][y][(x+1+cropShiftMove)%lcx])
                     cells[cellId]["nbg"]["bottom"].append(cropped[ins][(y+1+cropShiftMove)%lcy][x])
                 else:
-                    cells[len(cells.keys())] = {
+                    cells.append({
                         "nbg" : {
                             "left" : [cropped[ins][y][x-1-cropShiftMove]],
                             "top" : [cropped[ins][y-1-cropShiftMove][x]],
@@ -59,16 +60,16 @@ def loadCells(imageLink, tileSize=3, cropShift=False):
                             "bottom" : [cropped[ins][(y+1+cropShiftMove)%lcy][x]],
                         }, 
                         "img" : cropped[ins][y][x]
-                    }
+                    })
 
         for y in range(lcy):
             for x in range(lcx):
                 
-                for CellIdKey, value in cells.items():
+                for CellIdKey, value in enumerate(cells):
                     if value["img"] == cropped[ins][y][x]:
                         Gkey = CellIdKey
                 
-                for CellIdKey in cells.keys():
+                for CellIdKey in range(len(cells)):
                     for neighborKey in cells[CellIdKey]["nbg"].keys():
                         for i in range(len(cells[CellIdKey]["nbg"][neighborKey])):
                             if cells[CellIdKey]["nbg"][neighborKey][i] == cropped[ins][y][x]:
@@ -144,15 +145,16 @@ class Cell:
             return -1
         else:
             if self.collapsedNeighbours:
-                return len(cells)
+                return -1
             else:
                 return len(self.entropy)
-
+ 
 class Grid:
     def __init__(self, sx, sy, cells, tileSize=3):
         self.sx = sx
         self.sy = sy
         self.entropySave = {}
+        self.invertedEntropy = {}
         self.grid = []
         self.last5 = []
         self.GIMAGE = None
@@ -164,24 +166,42 @@ class Grid:
 
     def setRandom(self):
         self.grid = []
+        self.entropySave = {}
         for y in range(self.sy):
             self.grid.append([])
             for x in range(self.sx):
                 self.grid[y].append(Cell([x, y]))
-        self.grid[random.randint(0, self.sy-1)][random.randint(0, self.sx-1)].setCell(random.randint(0, len(self.cells)-1), self.cells)
-        self.getFinalImage()
+        randomXPos = random.randint(0, self.sx-1)
+        randomYPos = random.randint(0, self.sy-1)
+        self.grid[randomYPos][randomXPos].setCell(random.randint(0, len(self.cells)-1), self.cells)
+        self.loadPosEntropy([randomXPos, randomYPos])
+        self.loadEntropyAroundPos([randomXPos, randomYPos])
 
-    def loadEntropy(self):
-        self.entropySave = {}
-        for y in range(0, self.sy):
-            for x in range(0, self.sx):
-                self.grid[y][x].loadEntropy(self.grid)
-                if not self.grid[y][x].collapsed:
-                    entropy = self.grid[y][x].getEntropy(self.cells)
-                    self.entropySave[entropy] = self.entropySave.get(entropy, []) + [[x, y]]
+    def loadPosEntropy(self, pos):
+        posx, posy = pos
+        if (posx, posy) in list(self.invertedEntropy.keys()) and self.invertedEntropy[(posx, posy)] in self.entropySave.keys():
+            if pos in self.entropySave[self.invertedEntropy[(posx, posy)]]:
+                self.entropySave[self.invertedEntropy[(posx, posy)]].remove(pos)
+                if self.entropySave[self.invertedEntropy[(posx, posy)]] == []:
+                    self.entropySave.pop(self.invertedEntropy[(posx, posy)], None)
+        self.grid[posy][posx].loadEntropy(self.grid)
+        entropy = self.grid[posy][posx].getEntropy(self.cells)
+        if entropy != -1:
+            self.entropySave[entropy] = self.entropySave.get(entropy, []) + [pos]
+            self.invertedEntropy[(posx, posy)] = entropy
+        else:
+            self.invertedEntropy.pop((posx, posy), None)
+    
+    def loadEntropyAroundPos(self, pos):
+        posx, posy = pos
+        for x in [-1, 0, 1]:
+            for y in [-1, 0, 1]:
+                if abs(x) == abs(y):
+                    continue
+                if (posy+y)<len(self.grid) and (posx+x)<len(self.grid) and (posy+y)>=0 and (posx+x)>=0:
+                    self.loadPosEntropy([posx+x, posy+y])
 
     def collapse(self):
-        self.loadEntropy()
         sortedEntropy = sorted(self.entropySave.keys())
         if len(sortedEntropy) == 0:
                 return True
@@ -189,60 +209,56 @@ class Grid:
             sortedEntropy.remove(min(sortedEntropy))
             if len(sortedEntropy) == 0:
                 return True
-        y = self.entropySave[sortedEntropy[0]][0][1]
-        x = self.entropySave[sortedEntropy[0]][0][0]
+        x, y = random.choice(self.entropySave[sortedEntropy[0]])
 
         self.grid[y][x].collapse(self.cells)
-        self.loadEntropy()
-        ZeroCheck = 0 in self.entropySave.keys()
-        while 0 in self.entropySave.keys():
-            if len(self.backUps) > 0:
-                lb = self.backUps[len(self.backUps)-1]
-                self.grid[lb[1]][lb[0]] = Cell(lb)
-                self.backUps = self.backUps[:-1]
-            else:
-                self.setRandom()
-            self.loadEntropy()
-        if ZeroCheck:
+        self.loadPosEntropy([x, y])
+        self.loadEntropyAroundPos([x, y])
+        if 0 in self.entropySave:
             self.reloads += 2
-            for j in range(self.reloads + random.randint(0, 4)):
+            for i in range(self.reloads + random.randint(0, 3)):
                 if len(self.backUps) > 0:
                     lb = self.backUps[len(self.backUps)-1]
                     self.grid[lb[1]][lb[0]] = Cell(lb)
-                    self.backUps = self.backUps[:len(self.backUps)-1]
+                    self.loadPosEntropy([lb[0], lb[1]])
+                    self.loadEntropyAroundPos([lb[0], lb[1]])
+                    self.backUps = self.backUps[:-1]
                 else:
                     self.setRandom()
         else:
-            self.reloads = 0
+            self.reloads -= 1
         self.backUps.append([x, y])
 
-        if ITERATION % 400 == 0:
+        if ITERATION % 1000 == 0:
             self.getFinalImage()
         return False
 
 
     def getFinalImage(self, saveFileName="result.png"):
-        if self.GIMAGE is None:
-            self.GIMAGE = Image.new("RGB", (self.sx*self.tileSize, self.sy*self.tileSize))
+        self.GIMAGE = Image.new("RGB", (self.sx*self.tileSize, self.sy*self.tileSize))
         for y in range(self.sy):
             for x in range(self.sx):
-                if self.grid[y][x].id != -1:
+                if self.grid[y][x].collapsed:
                     self.GIMAGE.paste(self.cells[self.grid[y][x].id]["img"], (x*self.tileSize, y*self.tileSize, x*self.tileSize + self.tileSize, y*self.tileSize + self.tileSize))
         self.GIMAGE.save(saveFileName)
-
+    
+    def imagePixelsToArray(self, colorToPixelDict):
+        return [[colorToPixelDict[self.GIMAGE.getpixel((x, y))] if self.GIMAGE.getpixel((x, y)) in colorToPixelDict.keys() else -1 for x in range(self.sx*self.tileSize)] for y in range(self.sy*self.tileSize)]
 
 if __name__ == "__main__":
-    
     cells = loadCells("image.png", 3, True)
+    
+    timer = time.time()
 
-    grid = Grid(20, 20, cells, 3)
+    grid = Grid(100, 100, cells, 3)
     grid.setRandom()
-    grid.loadEntropy()
     ITERATION = 0
     flag = False
     while not flag:
         ITERATION += 1
-        if ITERATION %400 == 0:
+        if ITERATION %1000 == 0:
             print(ITERATION)
         flag = grid.collapse()
+    print(time.time() - timer)
     grid.getFinalImage()
+    result = grid.imagePixelsToArray({(0, 0, 0) : 0})
